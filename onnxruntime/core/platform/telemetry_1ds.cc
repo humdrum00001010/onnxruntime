@@ -398,10 +398,12 @@ void OneDsTelemetry::LogEventAsync(Microsoft::Applications::Events::EventPropert
 void OneDsTelemetry::Initialize() {
   std::unique_lock<std::shared_mutex> lock(mutex_);
 
-  // Full suppression is process-wide and irreversible: never create the uploader, emit an event, or
-  // persist a device id. Latching also covers later ORT reinitialization after an environment change.
+  // Telemetry is opt-in. Without ORT_ENABLE_TELEMETRY, or with any suppression signal, never create the
+  // uploader, emit an event, or persist a device id. The decision is process-wide and irreversible:
+  // latching also covers later ORT reinitialization after an environment change.
   if (telemetry_disabled_.load(std::memory_order_acquire) ||
-      IsRunningInCI() || IsRunningUnitTests() || IsTelemetryDisabledByEnvironment()) {
+      IsRunningInCI() || IsRunningUnitTests() || IsTelemetryDisabledByEnvironment() ||
+      !IsTelemetryEnabledByEnvironment()) {
     telemetry_disabled_.store(true, std::memory_order_release);
     enabled_.store(false, std::memory_order_release);
     return;

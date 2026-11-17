@@ -273,15 +273,27 @@ inline bool IsRunningUnitTests() {
   return !value || telemetry_detail::IsTruthyCiValue(*value);
 }
 
+namespace telemetry_detail {
+// True for 1/true/yes/on/y, case-insensitive, ignoring surrounding whitespace.
+inline bool IsExplicitlyTrue(std::string_view input) {
+  const std::string value = ToLowerAscii(TrimAscii(input));
+  return value == "1" || value == "true" || value == "yes" || value == "on" || value == "y";
+}
+}  // namespace telemetry_detail
+
 // True if ORT_DISABLE_TELEMETRY is set to a truthy value (1/true/yes/on/y, case-insensitive).
-// The POSIX 1DS provider latches this full opt-out during initialization. Windows ETW retains its
+// The 1DS provider latches this full opt-out during initialization. Windows ETW retains its
 // separate API/trace-session control model and does not consult this environment variable.
 inline bool IsTelemetryDisabledByEnvironment() {
   const auto input = telemetry_detail::ReadTelemetryEnvironment("ORT_DISABLE_TELEMETRY");
-  if (!input) return true;
-  const std::string value = telemetry_detail::ToLowerAscii(
-      telemetry_detail::TrimAscii(*input));
-  return value == "1" || value == "true" || value == "yes" || value == "on" || value == "y";
+  return !input || telemetry_detail::IsExplicitlyTrue(*input);
+}
+
+// True only if ORT_ENABLE_TELEMETRY is set to a truthy value (1/true/yes/on/y, case-insensitive).
+// 1DS telemetry is opt-in: unset, empty, unreadable or oversized values leave it off.
+inline bool IsTelemetryEnabledByEnvironment() {
+  const auto input = telemetry_detail::ReadTelemetryEnvironment("ORT_ENABLE_TELEMETRY");
+  return input && telemetry_detail::IsExplicitlyTrue(*input);
 }
 
 }  // namespace onnxruntime
